@@ -1,0 +1,7 @@
+.env
+*.env
+!.env.example
+sla.txt
+workflows.json
+elementor/
+hello-elementor/

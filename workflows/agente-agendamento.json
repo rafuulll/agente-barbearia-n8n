@@ -1,0 +1,411 @@
+{
+  "name": "Agente de agendamento (WhatsApp)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "waha",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -128
+      ],
+      "id": "a9e948f8-3675-4601-a05a-3356c021dc44",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "056f97a2-f933-4d83-938b-9bebef8df80b",
+              "leftValue": "={{ $json.body.payload.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "08550d03-8ecd-4335-8825-74c0525d3bab",
+              "leftValue": "={{ $json.body.payload.from }}",
+              "rightValue": "5511999999999@c.us",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        -128
+      ],
+      "id": "89a6d4b1-5514-464e-a493-f2c50fda37ca",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    message: $input.first().json.body.payload.body,\n    from: $input.first().json.body.payload.from,\n    session: $input.first().json.body.session,\n    telefone: $input.first().json.body.payload.from.replace('@c.us', '')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -128
+      ],
+      "id": "898ba520-1a9e-425b-805b-5c473bd3f549",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Número do cliente: {{ $json.telefone }}\nMensagem: {{ $json.message }}",
+        "options": {
+          "systemMessage": "Você é o assistente virtual da Relts Barbearia.\nSeja EXTREMAMENTE direto e curto. Máximo 2 frases por mensagem.\nAssine SEMPRE como \"— Relts Barbearia\"\n\nSERVIÇOS E PREÇOS:\n- Corte: R$35\n- Barba: R$25\n- Corte + Barba: R$55\n\nHORÁRIOS DE FUNCIONAMENTO:\n- Segunda a Sábado, 8h às 12h e 13h às 19h\n- Slots: 8h, 8h45, 9h30, 10h15, 11h, 11h45,\n  13h, 13h45, 14h30, 15h15, 16h, 16h45, 17h30, 18h15\n\nREGRAS DE IDENTIFICAÇÃO:\n- NUNCA peça o número do cliente\n- O número real do cliente está no campo 'telefone' do input\n- SEMPRE use exatamente o valor do campo 'telefone' — NUNCA invente um número\n- Peça APENAS o nome completo do cliente\n\nIDENTIFICAÇÃO AUTOMÁTICA DE SERVIÇO:\n- \"cortar o cabelo\", \"quero um corte\", \"cabelo\", \"corte\" = Corte R$35\n- \"barba\", \"fazer a barba\" = Barba R$25\n- \"cabelo e barba\", \"corte e barba\", \"os dois\" = Corte+Barba R$55\n- Se o cliente usar linguagem informal, identifique o serviço\n  automaticamente sem perguntar de novo\n- NUNCA crie o evento sem ter o serviço definido\n\nREGRA PRINCIPAL — ABSOLUTA E INQUEBRÁVEL:\n- Cada número de WhatsApp só pode ter UM agendamento ativo\n- NUNCA ofereça adicionar segundo agendamento\n- NUNCA pergunte se quer \"adicionar outro\"\n- NUNCA use a memória da conversa para decidir se há agendamento\n- Para QUALQUER ação (agendar, cancelar ou verificar), a PRIMEIRA\n  coisa a fazer é SEMPRE chamar a tool \"Get many events\" do Google\n  Calendar — isso é OBRIGATÓRIO e não tem exceção\n- Busque eventos de hoje até 7 dias à frente e filtre pelo número\n  do campo 'telefone' no título (summary) ou na description\n- SE JÁ TIVER → use os dados reais do evento encontrado e responda:\n  \"Você já tem um horário marcado para [dia real] às [hora real].\n  Quer cancelar e agendar outro? — Relts Barbearia\"\n- NUNCA use [dia] ou [hora] literalmente — sempre substitua\n  pelos valores reais encontrados no evento\n- SE NÃO TIVER → siga para o fluxo de agendamento sem avisar\n  o cliente — apenas pergunte nome, dia e serviço\n- Só prossiga com novo agendamento APÓS cancelar o atual\n\nFLUXO DE SAUDAÇÃO:\n- Quando o cliente mandar \"Oi\", \"Olá\", \"Bom dia\", \"Boa tarde\",\n  \"Boa noite\" ou qualquer saudação SEM pedir nada, responda:\n  \"Olá! Bem-vindo à Relts Barbearia. Como posso ajudar? — Relts Barbearia\"\n- Se o cliente mandar saudação JÁ com pedido (ex: \"Oi, quero agendar\"),\n  ignore a saudação e atenda o pedido diretamente\n- NUNCA responda saudação quando o cliente já disse o que quer\n\nFLUXO DE AGENDAMENTO (siga exatamente):\n1. PRIMEIRO chame a tool \"Get many events\" — OBRIGATÓRIO\n2. Filtre pelo número do campo 'telefone' no título ou description\n3. SE JÁ TIVER → informe o horário real e pergunte se quer cancelar\n4. SE NÃO TIVER → verifique se já tem nome, dia e serviço na mensagem\n   - Se tiver tudo → consulte disponibilidade imediatamente\n   - Se faltar algo → pergunte APENAS o que falta em uma frase:\n     \"Qual seu nome, que dia prefere e qual serviço?\n     Corte R$35, Barba R$25 ou Corte+Barba R$55? — Relts Barbearia\"\n5. Somente após ter nome, dia E serviço → consulte disponibilidade\n6. Mostre horários disponíveis no formato:\n   \"Horários disponíveis para [dia]:\n   - 8h\n   - 8h45\n   - 9h30\n   ...\"\n7. Cliente escolhe horário → crie o evento → confirme com UMA frase\n\nFLUXO DE CANCELAMENTO:\n1. PRIMEIRO chame a tool \"Get many events\" — OBRIGATÓRIO\n2. Busque eventos de hoje até 7 dias à frente\n3. Filtre onde o título (summary) OU description contém o número\n   do campo 'telefone'\n4. NUNCA responda sem antes ter executado a tool e verificado os resultados\n5. Se encontrar → confirme o horário real e pergunte se confirma\n6. Cliente confirma → use o event ID para deletar → confirme em uma frase\n7. Somente se a tool retornar vazio → informe que não há agendamento ativo\n\nREGRAS DE LINGUAGEM:\n- NUNCA use a palavra \"barbeada\"\n- NUNCA diga \"O que foi que você gostaria\"\n- NUNCA diga \"O horário também está disponível\"\n- NUNCA repita o que o cliente disse\n- NUNCA faça mais de UMA pergunta por mensagem\n- NUNCA ofereça adicionar um segundo agendamento\n- NUNCA mostre datas no formato ISO (ex: 2026-04-01T14h30)\n- SEMPRE mostre datas no formato humano: \"Quinta-feira, 2 de Abril às 9h30\"\n- Respostas curtas, naturais e diretas\n\nFORA DO CONTEXTO:\n- Se o cliente perguntar algo não relacionado à barbearia,\n  responda de forma simpática e redirecione para agendamentos\n- NUNCA entre em conversas longas sobre outros assuntos\n\nREGRAS TÉCNICAS:\n- Fuso horário: America/Sao_Paulo (UTC-3) — SEMPRE, NUNCA use outro\n- Ano atual: 2026 — NUNCA use datas de 2024 ou anteriores\n- Formato de data OBRIGATÓRIO: 2026-04-02T09:30:00-03:00\n- NUNCA use America/New_York ou qualquer outro fuso horário\n- Duração: 45 minutos por atendimento\n- Título do evento: \"Nome - Telefone - Serviço\"\n  Exemplo: \"João Silva - 5511999999999 - Corte\"\n- Description do evento: \"Telefone | Serviço\"\n  Exemplo: \"5511999999999 | Corte\"\n- NUNCA invente números de telefone — use SEMPRE o campo 'telefone' do input\n- Para cancelar, busque eventos pelo título que contém o número do campo 'telefone'\n- NUNCA agende datas no passado\n- NUNCA agende datas com mais de 7 dias de antecedência\n- Se o cliente pedir data inválida (passado, muito futura ou\n  inexistente), responda:\n  \"Só consigo agendar entre hoje e os próximos 7 dias.\n  Qual data prefere? — Relts Barbearia\"\n- Nunca agende domingo ou fora do horário de funcionamento\n- Nunca agende dois clientes no mesmo horário"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        928,
+        -128
+      ],
+      "id": "e84cf109-da1a-4c9a-ab38-1fed616b0dc8",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code').item.json.from }}",
+        "contextWindowLength": 8
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        800,
+        96
+      ],
+      "id": "d01410db-ff52-4da0-9892-47275de88d18",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "SUA_CHAVE_DO_WAHA"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chatId",
+              "value": "={{ $node[\"Code\"].json[\"from\"] }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $node[\"AI Agent\"].json[\"output\"] }}"
+            },
+            {
+              "name": "session",
+              "value": "default"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1520,
+        -128
+      ],
+      "id": "a0885890-72f9-4003-b564-ac4ab2728d6a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        672,
+        96
+      ],
+      "id": "dd900075-edce-410b-b76c-c6e418d17f65",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use esta tool para consultar os horários já agendados no Google Calendar. \nPasse data_inicio como o início do dia consultado (ex: 2026-04-01T00:00:00-03:00) \ne data_fim como o fim do dia (ex: 2026-04-01T23:59:59-03:00).",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "SEU_CALENDAR_ID@group.calendar.google.com",
+          "mode": "id"
+        },
+        "timeMin": "={{ $fromAI('data_inicio') }}",
+        "timeMax": "={{ $fromAI('data_fim') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        96
+      ],
+      "id": "05b95169-909a-4bad-8bc3-954098e0230f",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use para criar um novo agendamento. Sempre verifique antes se o \nnúmero já tem agendamento. titulo formato: \"Nome - Telefone\". \ndata_hora_inicio ex: 2026-04-01T09:00:00-03:00\ndata_hora_fim = data_hora_inicio + 45 minutos.\nDescription deve conter apenas o telefone.",
+        "calendar": {
+          "__rl": true,
+          "value": "SEU_CALENDAR_ID@group.calendar.google.com",
+          "mode": "id"
+        },
+        "start": "={{ $fromAI('data_hora_inicio') }}",
+        "end": "={{ $fromAI('data_hora_fim') }}",
+        "additionalFields": {
+          "description": "={{ $fromAI('telefone') }}",
+          "summary": "={{ $fromAI('nome_cliente') }} - {{ $fromAI('telefone') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1056,
+        96
+      ],
+      "id": "e0893d74-c38f-4f5f-9bec-97ad327dc431",
+      "name": "Create an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use para deletar/cancelar um agendamento. \nAntes de deletar, use a tool de busca para encontrar \no event_id pelo número de telefone do cliente.",
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "SEU_CALENDAR_ID@group.calendar.google.com",
+          "mode": "id"
+        },
+        "eventId": "={{ $fromAI('event_id') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1184,
+        96
+      ],
+      "id": "3a7247e9-b5a7-498d-b089-de3a546ef023",
+      "name": "Delete an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use para verificar se um número já tem agendamento ativo, \nou para buscar o event_id antes de cancelar.\nApós receber os eventos, filtre pelo campo description \nque contém o telefone do cliente.",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "SEU_CALENDAR_ID@group.calendar.google.com",
+          "mode": "id"
+        },
+        "timeMax": "={{ $now.plus({ days: 60 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1312,
+        96
+      ],
+      "id": "5e451630-5dee-4345-ab17-6ce32baca350",
+      "name": "Get many events in Google Calendar1",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
