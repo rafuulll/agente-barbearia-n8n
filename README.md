@@ -4,6 +4,16 @@ Agente de IA que atende clientes de uma barbearia pelo WhatsApp: entende o pedid
 
 Criado em março de 2026 (fluxos de 26/03 a 01/04/2026). Este repositório publica a versão final, sem chaves nem dados pessoais.
 
+## Demonstração
+
+**Fluxo do agente:** o webhook recebe a mensagem do WhatsApp, o filtro e o código preparam os dados, e o AI Agent usa o modelo da Groq, a memória e 4 ferramentas do Google Agenda antes de responder pelo WAHA.
+
+![Fluxo do agente de agendamento no n8n](docs/fluxo-agente.png)
+
+**Fluxo de lembretes:** a cada 15 minutos, busca os próximos horários, separa os que começam em cerca de 1 hora e envia o lembrete pelo WhatsApp.
+
+![Fluxo de lembretes no n8n](docs/fluxo-lembretes.png)
+
 ## O que ele faz
 
 - Responde pelo WhatsApp, com memória das últimas 8 mensagens de cada cliente
@@ -46,7 +56,7 @@ flowchart LR
 
 - Regra de um agendamento ativo por número, sempre conferida na agenda e nunca na memória da conversa, para evitar duplicidade.
 - Telefone vindo do próprio WhatsApp, nunca digitado pelo cliente, para o agente não inventar números.
-- Temperatura baixa (0.2) e prompt com regras explícitas de datas e fuso horário, porque os primeiros testes erravam datas.
+- Temperatura baixa (0.2) e prompt com regras explícitas de datas e fuso horário, para evitar agendamentos em data ou horário errados.
 - Lembrete marcado no próprio evento para não ser enviado duas vezes.
 
 ## Como rodar
